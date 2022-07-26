@@ -143,7 +143,7 @@ def is_real_player(player):
 
 def thread_function(connection,driver,pdga_number):
     player = read_player_page(driver,pdga_number)
-    if is_real_player():
+    if is_real_player(player):
         sql = insert_players_sql()
         args = (player['pdga_number']
                 , player['name']
