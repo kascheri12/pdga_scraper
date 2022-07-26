@@ -137,7 +137,7 @@ def read_player_page(driver,pdga_number):
 
 def is_real_player(player):
     # This is our qualification to be put in the db
-    if player['name'] != '' and player['member_since'] != '':
+    if player['name'] != '' and player['membership_status'] != '':
         return True
     return False
 
