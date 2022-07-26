@@ -27,6 +27,13 @@ def execute_query(connection,query,args=[]):
     except Error as e:
         print(f"The error '{e}' occurred")
 
+def select_query(connection,query,args=[]):
+    cursor = connection.cursor()
+    try:
+        cursor.execute(query, args)
+        return cursor.fetchall()
+    except Error as e:
+        print(f"The error '{e}' occurred")
 
 def create_players_table_sql():
     return """
@@ -49,7 +56,6 @@ def create_players_table_sql():
 def create_players_table(connection):
     sql = create_players_table_sql()
     return execute_query(connection,sql)
-
 
 def drop_players_sql():
     return "DROP TABLE players;"
@@ -77,10 +83,14 @@ def insert_players_sql():
               ( ?,?,?,?,?,?,?,?,?,?,? );
             """
 
+def get_highest_pdga_number_in_db(connection):
+    sql = "select max(pdga_number) max_number from players;"
+    rows = select_query(connection,sql)
+    for r in rows:
+        return r[0]
+
 def read_player_page(driver,pdga_number):
-
     driver.get('https://pdga.com/player/' + str(pdga_number))
-
     player = {}
     player['pdga_number'] = pdga_number
     try:
@@ -123,36 +133,40 @@ def read_player_page(driver,pdga_number):
         player['career_earnings'] = driver.find_element(By.CLASS_NAME,"career-earnings").text.split(':')[1].strip()
     except Exception:
         player['career_earnings'] = 0
-
     return player
 
+def is_real_player(player):
+    # This is our qualification to be put in the db
+    if player['name'] != '' and player['membership_status'] != '':
+        return True
+    return False
 
 def thread_function(connection,driver,pdga_number):
-
     player = read_player_page(driver,pdga_number)
-    sql = insert_players_sql()
-    args = (player['pdga_number']
-            , player['name']
-            , player['location']
-            , player['classification']
-            , player['member_since']
-            , player['membership_status']
-            , player['official_status']
-            , player['current_rating']
-            , player['career_events']
-            , player['career_wins']
-            , player['career_earnings'])
-    execute_query(connection,sql,args)
-    print(player['name'] + ' #' + str(player['pdga_number']))
+    if is_real_player(player):
+        sql = insert_players_sql()
+        args = (player['pdga_number']
+                , player['name']
+                , player['location']
+                , player['classification']
+                , player['member_since']
+                , player['membership_status']
+                , player['official_status']
+                , player['current_rating']
+                , player['career_events']
+                , player['career_wins']
+                , player['career_earnings'])
+        execute_query(connection,sql,args)
+        print(player['name'] + ' #' + str(player['pdga_number']))
 
 if __name__ == '__main__':
 
     connection = create_connection(os.environ.get("DB_PATH"))
 
-    refresh_players_db = False
-    if refresh_players_db:
-        drop_players_table(connection)
-        create_players_table(connection)
+    # refresh_players_db = False
+    # if refresh_players_db:
+    #     drop_players_table(connection)
+    #     create_players_table(connection)
 
     options = webdriver.ChromeOptions()
     options.binary_location = os.environ.get("CHROME_BINARY")
@@ -160,5 +174,7 @@ if __name__ == '__main__':
     chrome_driver_binary = os.environ.get("CHROME_DRIVER_BINARY_PATH")
     driver = webdriver.Chrome(chrome_driver_binary, chrome_options=options)
 
-    for x in range(1,100000):
+    begin_number = get_highest_pdga_number_in_db(connection) + 1
+
+    for x in range(begin_number,100000):
         thread_function(connection,driver,x)
