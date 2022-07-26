@@ -135,22 +135,29 @@ def read_player_page(driver,pdga_number):
         player['career_earnings'] = 0
     return player
 
+def is_real_player(player):
+    # This is our qualification to be put in the db
+    if player['name'] != '' and player['member_since'] != '':
+        return True
+    return False
+
 def thread_function(connection,driver,pdga_number):
     player = read_player_page(driver,pdga_number)
-    sql = insert_players_sql()
-    args = (player['pdga_number']
-            , player['name']
-            , player['location']
-            , player['classification']
-            , player['member_since']
-            , player['membership_status']
-            , player['official_status']
-            , player['current_rating']
-            , player['career_events']
-            , player['career_wins']
-            , player['career_earnings'])
-    execute_query(connection,sql,args)
-    print(player['name'] + ' #' + str(player['pdga_number']))
+    if is_real_player():
+        sql = insert_players_sql()
+        args = (player['pdga_number']
+                , player['name']
+                , player['location']
+                , player['classification']
+                , player['member_since']
+                , player['membership_status']
+                , player['official_status']
+                , player['current_rating']
+                , player['career_events']
+                , player['career_wins']
+                , player['career_earnings'])
+        execute_query(connection,sql,args)
+        print(player['name'] + ' #' + str(player['pdga_number']))
 
 if __name__ == '__main__':
 
