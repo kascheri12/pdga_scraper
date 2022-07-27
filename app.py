@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 import sqlite3
 from sqlite3 import Error
 from time import process_time
+import pandas as pd
 
 load_dotenv()
 
@@ -53,12 +54,88 @@ def create_players_table_sql():
         );
         """
 
+def create_pros_open_table_sql():
+    return """
+        CREATE TABLE IF NOT EXISTS pros_open (
+            id INTEGER PRIMARY key AUTOINCREMENT,
+            pdga_number INTEGER,
+            name TEXT,
+            rank TEXT,
+            cup_rank TEXT,
+            cup INTEGER,
+            usdc_rank TEXT,
+            usdc INTEGER,
+            worlds_rank TEXT,
+            worlds INTEGER,
+            elite_rank TEXT,
+            elite INTEGER,
+            rating_rank TEXT,
+            rating INTEGER,
+            wins_rank TEXT,
+            wins INTEGER,
+            podium_rank TEXT,
+            podium INTEGER,
+            top10_rank TEXT,
+            top10 INTEGER,
+            avg DECIMAL
+        );
+        """
+
+def create_pros_open_women_table_sql():
+    return """
+        CREATE TABLE IF NOT EXISTS pros_open_women (
+            id INTEGER PRIMARY key AUTOINCREMENT,
+            pdga_number INTEGER,
+            name TEXT,
+            rank TEXT,
+            cup_rank TEXT,
+            cup INTEGER,
+            usdc_rank TEXT,
+            usdc INTEGER,
+            worlds_rank TEXT,
+            worlds INTEGER,
+            elite_rank TEXT,
+            elite INTEGER,
+            rating_rank TEXT,
+            rating INTEGER,
+            wins_rank TEXT,
+            wins INTEGER,
+            podium_rank TEXT,
+            podium INTEGER,
+            top10_rank TEXT,
+            top10 INTEGER,
+            avg DECIMAL
+        );
+        """
+
 def create_players_table(connection):
     sql = create_players_table_sql()
     return execute_query(connection,sql)
 
+def create_pros_open_table(connection):
+    sql = create_pros_open_table_sql()
+    return execute_query(connection,sql)
+
+def create_pros_open_women_table(connection):
+    sql = create_pros_open_women_table_sql()
+    return execute_query(connection,sql)
+
 def drop_players_sql():
     return "DROP TABLE players;"
+
+def drop_pros_open_sql():
+    return "DROP TABLE pros_open;"
+
+def drop_pros_open_women_sql():
+    return "DROP TABLE pros_open_women;"
+
+def drop_pros_open_table(connection):
+    sql = drop_pros_open_sql()
+    execute_query(connection,sql)
+
+def drop_pros_open_women_table(connection):
+    sql = drop_pros_open_women_sql()
+    execute_query(connection,sql)
 
 def drop_players_table(connection):
     sql = drop_players_sql()
@@ -82,6 +159,60 @@ def insert_players_sql():
             VALUES
               ( ?,?,?,?,?,?,?,?,?,?,? );
             """
+
+def insert_pros_open_sql():
+    return """
+        INSERT INTO pros_open (
+            rank,
+            name,
+            pdga_number,
+            cup_rank,
+            cup,
+            usdc_rank,
+            usdc,
+            worlds_rank,
+            worlds,
+            elite_rank,
+            elite,
+            rating_rank,
+            rating,
+            wins_rank,
+            wins,
+            podium_rank,
+            podium,
+            top10_rank,
+            top10,
+            avg)
+        VALUES
+          ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? );
+    """
+
+def insert_pros_open_women_sql():
+    return """
+        INSERT INTO pros_open_women (
+            rank,
+            name,
+            pdga_number,
+            cup_rank,
+            cup,
+            usdc_rank,
+            usdc,
+            worlds_rank,
+            worlds,
+            elite_rank,
+            elite,
+            rating_rank,
+            rating,
+            wins_rank,
+            wins,
+            podium_rank,
+            podium,
+            top10_rank,
+            top10,
+            avg)
+        VALUES
+          ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? );
+    """
 
 def get_highest_pdga_number_in_db(connection):
     sql = "select max(pdga_number) max_number from players;"
@@ -159,6 +290,121 @@ def thread_function(connection,driver,pdga_number):
         execute_query(connection,sql,args)
         print(player['name'] + ' #' + str(player['pdga_number']))
 
+def is_pro(player):
+    try:
+        # if pdga number exists then this is a player
+        if player[1].split('#')[1].strip() != '':
+            return True
+    except:
+        pass
+    return False
+
+def digest_pros_page(connection,driver):
+    open_url = 'https://www.pdga.com/united-states-tour-ranking-open'
+    driver.get(open_url)
+    df = pd.read_html(driver.page_source)[0]
+    players = []
+    for r in df.iloc:
+        if is_pro(r):
+            player = {}
+            player['rank'] = r[0].split(' ')[0].strip()
+            player['player'] = r[1].split('#')[0].strip()
+            player['pdga_number'] = r[1].split('#')[1].strip()
+            player['cup_rank'] = r[2].split(' ')[0]
+            player['cup'] = r[2].split(' ')[1]
+            player['usdc_rank'] = r[3].split(' ')[0]
+            player['usdc'] = r[3].split(' ')[1]
+            player['worlds_rank'] = r[4].split(' ')[0]
+            player['worlds'] = r[4].split(' ')[1]
+            player['elite_rank'] = r[5].split(' ')[0]
+            player['elite'] = r[5].split(' ')[1]
+            player['rating_rank'] = r[6].split(' ')[0]
+            player['rating'] = r[6].split(' ')[1]
+            player['wins_rank'] = r[7].split(' ')[0]
+            player['wins'] = r[7].split(' ')[1]
+            player['podium_rank'] =  r[8].split(' ')[0]
+            player['podium'] = r[8].split(' ')[1]
+            player['top10_rank'] = r[9].split(' ')[0]
+            player['top10'] = r[9].split(' ')[1]
+            player['avg'] = r[10]
+            sql = insert_pros_open_sql()
+            args = (player['rank']
+                    , player['player']
+                    , player['pdga_number']
+                    , player['cup_rank']
+                    , player['cup']
+                    , player['usdc_rank']
+                    , player['usdc']
+                    , player['worlds_rank']
+                    , player['worlds']
+                    , player['elite_rank']
+                    , player['elite']
+                    , player['rating_rank']
+                    , player['rating']
+                    , player['wins_rank']
+                    , player['wins']
+                    , player['podium_rank']
+                    , player['podium']
+                    , player['top10_rank']
+                    , player['top10']
+                    , player['avg'])
+            execute_query(connection,sql,args)
+
+            print(player['player'] + ' #' + str(player['pdga_number']))
+
+def digest_pros_open_women_page(connection,driver):
+    open_women_url = 'https://www.pdga.com/united-states-tour-ranking-open-women'
+    driver.get(open_women_url)
+    df = pd.read_html(driver.page_source)[0]
+    players = []
+    for r in df.iloc:
+        if is_pro(r):
+            player = {}
+            player['rank'] = r[0].split(' ')[0].strip()
+            player['player'] = r[1].split('#')[0].strip()
+            player['pdga_number'] = r[1].split('#')[1].strip()
+            player['cup_rank'] = r[2].split(' ')[0]
+            player['cup'] = r[2].split(' ')[1]
+            player['usdc_rank'] = r[3].split(' ')[0]
+            player['usdc'] = r[3].split(' ')[1]
+            player['worlds_rank'] = r[4].split(' ')[0]
+            player['worlds'] = r[4].split(' ')[1]
+            player['elite_rank'] = r[5].split(' ')[0]
+            player['elite'] = r[5].split(' ')[1]
+            player['rating_rank'] = r[6].split(' ')[0]
+            player['rating'] = r[6].split(' ')[1]
+            player['wins_rank'] = r[7].split(' ')[0]
+            player['wins'] = r[7].split(' ')[1]
+            player['podium_rank'] =  r[8].split(' ')[0]
+            player['podium'] = r[8].split(' ')[1]
+            player['top10_rank'] = r[9].split(' ')[0]
+            player['top10'] = r[9].split(' ')[1]
+            player['avg'] = r[10]
+            sql = insert_pros_open_women_sql()
+            args = (player['rank']
+                    , player['player']
+                    , player['pdga_number']
+                    , player['cup_rank']
+                    , player['cup']
+                    , player['usdc_rank']
+                    , player['usdc']
+                    , player['worlds_rank']
+                    , player['worlds']
+                    , player['elite_rank']
+                    , player['elite']
+                    , player['rating_rank']
+                    , player['rating']
+                    , player['wins_rank']
+                    , player['wins']
+                    , player['podium_rank']
+                    , player['podium']
+                    , player['top10_rank']
+                    , player['top10']
+                    , player['avg'])
+            execute_query(connection,sql,args)
+
+            print(player['player'] + ' #' + str(player['pdga_number']))
+
 if __name__ == '__main__':
 
     connection = create_connection(os.environ.get("DB_PATH"))
@@ -173,6 +419,20 @@ if __name__ == '__main__':
     options.add_argument('headless')
     chrome_driver_binary = os.environ.get("CHROME_DRIVER_BINARY_PATH")
     driver = webdriver.Chrome(chrome_driver_binary, chrome_options=options)
+
+    # refresh_pros_open_db = True
+    # if refresh_pros_open_db:
+    #     drop_pros_open_table(connection)
+    #     create_pros_open_table(connection)
+    #
+    # digest_pros_page(connection,driver)
+    #
+    # refresh_pros_open_women_db = True
+    # if refresh_pros_open_women_db:
+    #     drop_pros_open_women_table(connection)
+    #     create_pros_open_women_table(connection)
+    #
+    # digest_pros_open_women_page(connection,driver)
 
     begin_number = get_highest_pdga_number_in_db(connection) + 1
 

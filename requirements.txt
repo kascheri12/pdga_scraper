@@ -1,2 +1,4 @@
 selenium==4.3.0
 python-dotenv==0.20.0
+pandas==1.4.3
+lxml==4.9.1
