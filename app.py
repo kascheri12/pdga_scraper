@@ -2,10 +2,11 @@ import os, concurrent.futures
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-import sqlite3
+import sqlite3, json
 from sqlite3 import Error
 from time import process_time
 import pandas as pd
+from pdga import PDGA
 
 load_dotenv()
 
@@ -405,20 +406,38 @@ def digest_pros_open_women_page(connection,driver):
 
             print(player['player'] + ' #' + str(player['pdga_number']))
 
+def get_players():
+    username = os.environ.get("USERNAME")
+    password = os.environ.get("PASSWORD")
+    master_player_list = []
+    limit = 200
+    offset = 0
+    
+    pdga = PDGA(username,password)
+    
+    for i in range(0,1450):
+        offset = limit * i
+        players = pdga.get_players(limit,offset)
+        master_player_list += players
+    
+    with open('players.json', 'a') as outfile:
+        json.dump(master_player_list, outfile)
+
 if __name__ == '__main__':
 
     connection = create_connection(os.environ.get("DB_PATH"))
-
+    
+    get_players()
     # refresh_players_db = False
     # if refresh_players_db:
     #     drop_players_table(connection)
     #     create_players_table(connection)
 
-    options = webdriver.ChromeOptions()
-    options.binary_location = os.environ.get("CHROME_BINARY")
-    options.add_argument('headless')
-    chrome_driver_binary = os.environ.get("CHROME_DRIVER_BINARY_PATH")
-    driver = webdriver.Chrome(chrome_driver_binary, chrome_options=options)
+    # options = webdriver.ChromeOptions()
+    # options.binary_location = os.environ.get("CHROME_BINARY")
+    # options.add_argument('headless')
+    # chrome_driver_binary = os.environ.get("CHROME_DRIVER_BINARY_PATH")
+    # driver = webdriver.Chrome(chrome_driver_binary, chrome_options=options)
 
     # refresh_pros_open_db = True
     # if refresh_pros_open_db:
@@ -434,7 +453,7 @@ if __name__ == '__main__':
     #
     # digest_pros_open_women_page(connection,driver)
 
-    begin_number = get_highest_pdga_number_in_db(connection) + 1
-
-    for x in range(begin_number,100000):
-        thread_function(connection,driver,x)
+    # begin_number = get_highest_pdga_number_in_db(connection) + 1
+    # 
+    # for x in range(begin_number,100000):
+    #     thread_function(connection,driver,x)
